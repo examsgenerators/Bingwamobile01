@@ -8,11 +8,17 @@ class MpesaReceiver : BroadcastReceiver() {
     
     companion object {
         private const val TAG = "MpesaReceiver"
-        // Names used for token purchase detection
         private val TOKEN_NAMES = listOf("victor ngetich", "victor kiplangat ngetich")
     }
     
     override fun onReceive(context: Context, intent: Intent) {
+        // Check if automation is enabled
+        val appPrefs = context.getSharedPreferences("app_settings", Context.MODE_PRIVATE)
+        if (!appPrefs.getBoolean("automation_enabled", true)) {
+            Log.d(TAG, "Automation disabled - ignoring SMS")
+            return
+        }
+        
         val pdus = intent.extras?.get("pdus") as? Array<*> ?: return
         
         for (pdu in pdus) {
@@ -54,6 +60,9 @@ class MpesaReceiver : BroadcastReceiver() {
         if (tokensToAdd > 0) {
             tokens.edit().putInt("balance", currentBalance + tokensToAdd).apply()
             Log.d(TAG, "✅ Tokens added: $tokensToAdd (KSh $amount)")
+            
+            // Show notification
+            showNotification(context, "Tokens Added", "+$tokensToAdd tokens (KSh $amount)")
         }
     }
     
@@ -88,6 +97,10 @@ class MpesaReceiver : BroadcastReceiver() {
             context.startService(service)
             
             Log.d(TAG, "🚀 Executing: ${offer.name} for $phoneNumber")
+            showNotification(context, "Executing", "${offer.name} for $phoneNumber")
+        } else if (offer != null && currentBalance < offer.tokenCost) {
+            Log.d(TAG, "❌ Insufficient tokens: have $currentBalance, need ${offer.tokenCost}")
+            showNotification(context, "Insufficient Tokens", "Need ${offer.tokenCost} tokens, have $currentBalance")
         }
     }
     
@@ -99,5 +112,29 @@ class MpesaReceiver : BroadcastReceiver() {
     private fun extractPhoneNumber(body: String): String {
         val regex = Regex("07\\d{8}")
         return regex.find(body)?.value ?: ""
+    }
+    
+    private fun showNotification(context: Context, title: String, message: String) {
+        try {
+            val manager = context.getSystemService(Context.NOTIFICATION_SERVICE) as android.app.NotificationManager
+            if (android.os.Build.VERSION.SDK_INT >= android.os.Build.VERSION_CODES.O) {
+                val channel = android.app.NotificationChannel(
+                    "bingwa_transactions",
+                    "Bingwa Transactions",
+                    android.app.NotificationManager.IMPORTANCE_HIGH
+                )
+                manager.createNotificationChannel(channel)
+            }
+            val notification = androidx.core.app.NotificationCompat.Builder(context, "bingwa_transactions")
+                .setSmallIcon(android.R.drawable.ic_dialog_info)
+                .setContentTitle(title)
+                .setContentText(message)
+                .setPriority(androidx.core.app.NotificationCompat.PRIORITY_HIGH)
+                .setAutoCancel(true)
+                .build()
+            manager.notify(System.currentTimeMillis().toInt(), notification)
+        } catch (e: Exception) {
+            Log.e(TAG, "Notification failed: ${e.message}")
+        }
     }
 }
