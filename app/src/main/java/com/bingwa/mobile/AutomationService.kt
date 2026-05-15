@@ -1,14 +1,9 @@
 package com.bingwa.mobile
 
 import android.app.Service
-import android.content.Context
 import android.content.Intent
 import android.net.Uri
-import android.os.Build
-import android.os.Bundle
 import android.os.IBinder
-import android.telecom.TelecomManager
-import android.telephony.SubscriptionManager
 import android.util.Log
 
 class AutomationService : Service() {
@@ -35,27 +30,10 @@ class AutomationService : Service() {
 
     private fun dial(fullCode: String) {
         try {
-            val prefs = getSharedPreferences("app_settings", Context.MODE_PRIVATE)
-            val simId = prefs.getInt("selected_sim_id", -1)
-
-            if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.LOLLIPOP && simId != -1) {
-                val telecomManager = getSystemService(Context.TELECOM_SERVICE) as? TelecomManager
-                val subscriptionManager = getSystemService(Context.TELEPHONY_SUBSCRIPTION_SERVICE) as? SubscriptionManager
-                val phoneAccountHandle = subscriptionManager?.getPhoneAccountHandleForSubscriptionId(simId)
-
-                if (telecomManager != null && phoneAccountHandle != null) {
-                    val uri = Uri.parse("tel:$fullCode")
-                    val extras = Bundle()
-                    extras.putParcelable(TelecomManager.EXTRA_PHONE_ACCOUNT_HANDLE, phoneAccountHandle)
-                    telecomManager.placeCall(uri, extras)
-                    Log.d(TAG, "📞 Dialing with SIM $simId: $fullCode")
-                    return
-                }
-            }
-            // Fallback
             val callIntent = Intent(Intent.ACTION_CALL, Uri.parse("tel:$fullCode"))
             callIntent.addFlags(Intent.FLAG_ACTIVITY_NEW_TASK)
             startActivity(callIntent)
+            Log.d(TAG, "📞 Dialing: $fullCode")
         } catch (e: SecurityException) {
             Log.e(TAG, "Permission denied: ${e.message}")
         }
