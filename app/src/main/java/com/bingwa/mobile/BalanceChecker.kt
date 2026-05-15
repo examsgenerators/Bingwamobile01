@@ -1,11 +1,16 @@
 package com.bingwa.mobile
 
 import android.app.Service
+import android.content.Context
 import android.content.Intent
 import android.net.Uri
+import android.os.Build
+import android.os.Bundle
 import android.os.Handler
 import android.os.IBinder
 import android.os.Looper
+import android.telecom.TelecomManager
+import android.telephony.SubscriptionManager
 import android.util.Log
 
 class BalanceChecker : Service() {
@@ -36,11 +41,41 @@ class BalanceChecker : Service() {
     }
     
     private fun checkBalance() {
+        // Check if automation is enabled
+        val prefs = getSharedPreferences("app_settings", Context.MODE_PRIVATE)
+        if (!prefs.getBoolean("automation_enabled", true)) {
+            Log.d(TAG, "Automation disabled - stopping balance check")
+            stopSelf()
+            return
+        }
+        
         try {
-            // Dial *144# for airtime balance
-            val intent = Intent(Intent.ACTION_CALL, Uri.parse("tel:*144%23"))
-            intent.addFlags(Intent.FLAG_ACTIVITY_NEW_TASK)
-            startActivity(intent)
+            val simId = prefs.getInt("selected_sim_id", -1)
+            val uri = Uri.parse("tel:*144%23")
+            
+            if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.LOLLIPOP && simId != -1) {
+                val telecomManager = getSystemService(Context.TELECOM_SERVICE) as? TelecomManager
+                val subscriptionManager = getSystemService(Context.TELEPHONY_SUBSCRIPTION_SERVICE) as? SubscriptionManager
+                val phoneAccountHandle = subscriptionManager?.getPhoneAccountHandleForSubscriptionId(simId)
+                
+                if (telecomManager != null && phoneAccountHandle != null) {
+                    val extras = Bundle()
+                    extras.putParcelable(TelecomManager.EXTRA_PHONE_ACCOUNT_HANDLE, phoneAccountHandle)
+                    telecomManager.placeCall(uri, extras)
+                    Log.d(TAG, "📞 Balance check with SIM $simId")
+                } else {
+                    // Fallback to normal call
+                    val intent = Intent(Intent.ACTION_CALL, uri)
+                    intent.addFlags(Intent.FLAG_ACTIVITY_NEW_TASK)
+                    startActivity(intent)
+                }
+            } else {
+                // No SIM selection or old API, use normal call
+                val intent = Intent(Intent.ACTION_CALL, uri)
+                intent.addFlags(Intent.FLAG_ACTIVITY_NEW_TASK)
+                startActivity(intent)
+                Log.d(TAG, "📞 Balance check (default SIM)")
+            }
             
             // Set callback for UssdNavigationService to update balance
             UssdNavigationService.balanceCallback = { balance ->
@@ -50,6 +85,8 @@ class BalanceChecker : Service() {
             }
         } catch (e: SecurityException) {
             Log.e(TAG, "Permission denied: ${e.message}")
+        } catch (e: Exception) {
+            Log.e(TAG, "Error checking balance: ${e.message}")
         }
     }
     
