@@ -1,5 +1,6 @@
 package com.bingwa.mobile
 
+import android.content.Context
 import android.content.Intent
 import android.os.Bundle
 import androidx.activity.ComponentActivity
@@ -7,7 +8,6 @@ import androidx.activity.compose.setContent
 import androidx.compose.foundation.background
 import androidx.compose.foundation.layout.*
 import androidx.compose.foundation.lazy.LazyColumn
-import androidx.compose.foundation.lazy.items
 import androidx.compose.foundation.lazy.itemsIndexed
 import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.foundation.shape.RoundedCornerShape
@@ -32,9 +32,7 @@ import com.google.gson.reflect.TypeToken
 class MainActivity : ComponentActivity() {
     override fun onCreate(savedInstanceState: Bundle?) {
         super.onCreate(savedInstanceState)
-        // Start background balance checker
         startService(Intent(this, BalanceChecker::class.java))
-        
         setContent {
             MaterialTheme(colorScheme = lightColorScheme(
                 primary = Color(0xFF1A73E8),
@@ -55,12 +53,10 @@ fun BingwaApp() {
     val tokenManager = remember { TokenManager(context) }
     var tokenBalance by remember { mutableStateOf(tokenManager.getBalance()) }
     var airtimeBalance by remember { mutableStateOf("Checking...") }
-    
-    // Listen for balance updates
+
     DisposableEffect(Unit) {
         BalanceChecker.balanceCallback = { balance ->
             airtimeBalance = balance
-            // Extract just the KSh amount if possible
             val regex = Regex("Ksh\\.?\\s*(\\d+\\.?\\d*)", RegexOption.IGNORE_CASE)
             val match = regex.find(balance)
             if (match != null) {
@@ -69,8 +65,7 @@ fun BingwaApp() {
         }
         onDispose { BalanceChecker.balanceCallback = null }
     }
-    
-    // Refresh token balance when screen changes
+
     LaunchedEffect(selectedScreen) {
         tokenBalance = tokenManager.getBalance()
     }
@@ -111,11 +106,9 @@ fun BingwaApp() {
     }
 }
 
-// ──────────────────── DASHBOARD SCREEN ────────────────────
 @Composable
 fun DashboardScreen(tokenBalance: Int, airtimeBalance: String) {
     Column(modifier = Modifier.fillMaxSize().background(Color(0xFFF8F9FA))) {
-        // Header with gradient
         Box(
             modifier = Modifier
                 .fillMaxWidth()
@@ -127,10 +120,7 @@ fun DashboardScreen(tokenBalance: Int, airtimeBalance: String) {
                 Spacer(modifier = Modifier.height(4.dp))
                 Text("Automated M-PESA Agent", color = Color.White.copy(alpha = 0.8f), fontSize = 14.sp)
                 Spacer(modifier = Modifier.height(24.dp))
-                
-                // Two stat cards
                 Row(modifier = Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.spacedBy(12.dp)) {
-                    // Token Balance Card
                     Card(
                         modifier = Modifier.weight(1f),
                         shape = RoundedCornerShape(16.dp),
@@ -143,8 +133,6 @@ fun DashboardScreen(tokenBalance: Int, airtimeBalance: String) {
                             Text("Tokens", color = Color.White.copy(alpha = 0.7f), fontSize = 12.sp)
                         }
                     }
-                    
-                    // Airtime Balance Card
                     Card(
                         modifier = Modifier.weight(1f),
                         shape = RoundedCornerShape(16.dp),
@@ -160,39 +148,26 @@ fun DashboardScreen(tokenBalance: Int, airtimeBalance: String) {
                 }
             }
         }
-        
-        // Pricing Info
         LazyColumn(
             modifier = Modifier.fillMaxSize(),
             contentPadding = PaddingValues(16.dp),
             verticalArrangement = Arrangement.spacedBy(12.dp)
         ) {
+            item { Text("How It Works", fontSize = 20.sp, fontWeight = FontWeight.Bold, color = Color(0xFF212121)) }
             item {
-                Text("How It Works", fontSize = 20.sp, fontWeight = FontWeight.Bold, color = Color(0xFF212121))
+                InfoCard(Icons.Default.Add, "Buy Tokens",
+                    "Send money to VICTOR NGETICH via M-PESA.\nKSh 10 = 90 tokens | KSh 50 = 500 tokens | KSh 100 = 1000 tokens",
+                    Color(0xFF1A73E8))
             }
             item {
-                InfoCard(
-                    icon = Icons.Default.Add,
-                    title = "Buy Tokens",
-                    description = "Send money to VICTOR NGETICH via M-PESA.\nKSh 10 = 90 tokens | KSh 50 = 500 tokens | KSh 100 = 1000 tokens",
-                    color = Color(0xFF1A73E8)
-                )
+                InfoCard(Icons.Default.ShoppingCart, "Sell Data",
+                    "Client sends money to YOUR M-PESA.\nApp auto-deducts tokens and dials USSD to buy data for the client.",
+                    Color(0xFF34A853))
             }
             item {
-                InfoCard(
-                    icon = Icons.Default.ShoppingCart,
-                    title = "Sell Data",
-                    description = "Client sends money to YOUR M-PESA.\nApp auto-deducts tokens and dials USSD to buy data for the client.",
-                    color = Color(0xFF34A853)
-                )
-            }
-            item {
-                InfoCard(
-                    icon = Icons.Default.Refresh,
-                    title = "Airtime Balance",
-                    description = "Checks *144# every 4 seconds.\nShows real-time balance on dashboard.\nYou use airtime to sell data bundles.",
-                    color = Color(0xFFFF9800)
-                )
+                InfoCard(Icons.Default.Refresh, "Airtime Balance",
+                    "Checks *144# every 4 seconds.\nShows real-time balance on dashboard.\nYou use airtime to sell data bundles.",
+                    Color(0xFFFF9800))
             }
         }
     }
@@ -207,10 +182,7 @@ fun InfoCard(icon: androidx.compose.ui.graphics.vector.ImageVector, title: Strin
         elevation = CardDefaults.cardElevation(defaultElevation = 2.dp)
     ) {
         Row(modifier = Modifier.padding(16.dp), verticalAlignment = Alignment.Top) {
-            Box(
-                modifier = Modifier.size(48.dp).clip(CircleShape).background(color.copy(alpha = 0.1f)),
-                contentAlignment = Alignment.Center
-            ) {
+            Box(modifier = Modifier.size(48.dp).clip(CircleShape).background(color.copy(alpha = 0.1f)), contentAlignment = Alignment.Center) {
                 Icon(icon, title, tint = color, modifier = Modifier.size(24.dp))
             }
             Spacer(modifier = Modifier.width(12.dp))
@@ -223,13 +195,12 @@ fun InfoCard(icon: androidx.compose.ui.graphics.vector.ImageVector, title: Strin
     }
 }
 
-// ──────────────────── OFFERS SCREEN (Add/Edit Data Offers) ────────────────────
 @Composable
 fun OffersScreen() {
     val context = LocalContext.current
     val prefs = context.getSharedPreferences("DataOffers", Context.MODE_PRIVATE)
     val gson = remember { Gson() }
-    
+
     var offers by remember {
         mutableStateOf(
             try {
@@ -245,10 +216,10 @@ fun OffersScreen() {
             }
         )
     }
-    
+
     var showAddDialog by remember { mutableStateOf(false) }
     var editingOffer by remember { mutableStateOf<DataOffer?>(null) }
-    
+
     Column(modifier = Modifier.fillMaxSize().background(Color(0xFFF8F9FA))) {
         Surface(modifier = Modifier.fillMaxWidth(), color = Color.White, shadowElevation = 4.dp) {
             Row(
@@ -271,7 +242,6 @@ fun OffersScreen() {
                 }
             }
         }
-        
         LazyColumn(
             modifier = Modifier.fillMaxSize(),
             contentPadding = PaddingValues(16.dp),
@@ -317,8 +287,7 @@ fun OffersScreen() {
             }
         }
     }
-    
-    // Add/Edit Dialog
+
     if (showAddDialog) {
         AddOfferDialog(
             existingOffer = editingOffer,
@@ -347,7 +316,7 @@ fun AddOfferDialog(existingOffer: DataOffer?, onDismiss: () -> Unit, onSave: (Da
     var tokenCost by remember { mutableStateOf(existingOffer?.tokenCost?.toString() ?: "") }
     var ussdCode by remember { mutableStateOf(existingOffer?.ussdCode ?: "") }
     var executionMode by remember { mutableStateOf(existingOffer?.executionMode ?: "ADVANCED") }
-    
+
     AlertDialog(
         onDismissRequest = onDismiss,
         title = { Text(if (existingOffer != null) "Edit Offer" else "Add New Offer") },
@@ -357,22 +326,12 @@ fun AddOfferDialog(existingOffer: DataOffer?, onDismiss: () -> Unit, onSave: (Da
                 OutlinedTextField(value = price, onValueChange = { price = it }, label = { Text("Price (KSh)") }, keyboardOptions = KeyboardOptions(keyboardType = KeyboardType.Number), modifier = Modifier.fillMaxWidth())
                 OutlinedTextField(value = tokenCost, onValueChange = { tokenCost = it }, label = { Text("Token Cost") }, keyboardOptions = KeyboardOptions(keyboardType = KeyboardType.Number), modifier = Modifier.fillMaxWidth())
                 OutlinedTextField(value = ussdCode, onValueChange = { ussdCode = it }, label = { Text("USSD Code (e.g., *180*5*2*1#)") }, modifier = Modifier.fillMaxWidth())
-                
-                // Execution Mode Toggle
                 Row(verticalAlignment = Alignment.CenterVertically) {
                     Text("Execution Mode: ", fontSize = 14.sp)
                     Spacer(modifier = Modifier.width(8.dp))
-                    FilterChip(
-                        selected = executionMode == "SIMPLE",
-                        onClick = { executionMode = "SIMPLE" },
-                        label = { Text("SIMPLE") }
-                    )
+                    FilterChip(selected = executionMode == "SIMPLE", onClick = { executionMode = "SIMPLE" }, label = { Text("SIMPLE") })
                     Spacer(modifier = Modifier.width(8.dp))
-                    FilterChip(
-                        selected = executionMode == "ADVANCED",
-                        onClick = { executionMode = "ADVANCED" },
-                        label = { Text("ADVANCED") }
-                    )
+                    FilterChip(selected = executionMode == "ADVANCED", onClick = { executionMode = "ADVANCED" }, label = { Text("ADVANCED") })
                 }
             }
         },
@@ -394,7 +353,6 @@ fun AddOfferDialog(existingOffer: DataOffer?, onDismiss: () -> Unit, onSave: (Da
     )
 }
 
-// ──────────────────── TRANSACTIONS SCREEN ────────────────────
 @Composable
 fun TransactionsScreen() {
     Column(modifier = Modifier.fillMaxSize().background(Color(0xFFF8F9FA))) {
@@ -415,7 +373,6 @@ fun TransactionsScreen() {
     }
 }
 
-// ──────────────────── SETTINGS SCREEN ────────────────────
 @Composable
 fun SettingsScreen() {
     var notifications by remember { mutableStateOf(true) }
@@ -428,25 +385,19 @@ fun SettingsScreen() {
                 Text("Bingwa Mobile v1.0", fontSize = 14.sp, color = Color.Gray)
             }
         }
-        LazyColumn(
-            contentPadding = PaddingValues(16.dp),
-            verticalArrangement = Arrangement.spacedBy(12.dp)
-        ) {
+        LazyColumn(contentPadding = PaddingValues(16.dp), verticalArrangement = Arrangement.spacedBy(12.dp)) {
             item {
                 Card(shape = RoundedCornerShape(16.dp), colors = CardDefaults.cardColors(containerColor = Color.White)) {
                     Column {
                         SwitchRow("Notifications", "Transaction alerts", Icons.Default.Notifications, notifications) { notifications = it }
-                        HorizontalDivider(modifier = Modifier.padding(horizontal = 16.dp))
+                        Divider(modifier = Modifier.padding(horizontal = 16.dp))
                         SwitchRow("Auto-Renew", "Keep services active", Icons.Default.Autorenew, autoRenew) { autoRenew = it }
                     }
                 }
             }
             item {
                 Card(shape = RoundedCornerShape(16.dp), colors = CardDefaults.cardColors(containerColor = Color.White)) {
-                    Column(
-                        modifier = Modifier.fillMaxWidth().padding(16.dp),
-                        horizontalAlignment = Alignment.CenterHorizontally
-                    ) {
+                    Column(modifier = Modifier.fillMaxWidth().padding(16.dp), horizontalAlignment = Alignment.CenterHorizontally) {
                         Text("Bingwa Mobile", fontSize = 16.sp, fontWeight = FontWeight.Bold, color = Color(0xFF212121))
                         Text("Version 1.0.0", fontSize = 13.sp, color = Color.Gray)
                         Spacer(modifier = Modifier.height(4.dp))
