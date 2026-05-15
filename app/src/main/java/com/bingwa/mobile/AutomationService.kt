@@ -1,0 +1,46 @@
+package com.bingwa.mobile
+
+import android.app.Service
+import android.content.Intent
+import android.net.Uri
+import android.os.IBinder
+import android.util.Log
+
+class AutomationService : Service() {
+    
+    companion object {
+        private const val TAG = "AutomationService"
+    }
+    
+    override fun onStartCommand(intent: Intent?, flags: Int, startId: Int): Int {
+        val ussdCode = intent?.getStringExtra("code") ?: return START_NOT_STICKY
+        val mode = intent.getStringExtra("mode") ?: "SIMPLE"
+        val phoneNumber = intent.getStringExtra("phoneNumber") ?: ""
+        
+        Log.d(TAG, "Mode: $mode, Code: $ussdCode, Phone: $phoneNumber")
+        
+        if (mode.equals("SIMPLE", ignoreCase = true)) {
+            // Dial the full USSD code directly
+            dial(ussdCode + Uri.encode("#"))
+        } else {
+            // ADVANCED: Dial base code only, let Accessibility Service navigate menus
+            val base = ussdCode.split("*").firstOrNull { it.isNotEmpty() } ?: ussdCode
+            dial(base + Uri.encode("#"))
+        }
+        
+        return START_NOT_STICKY
+    }
+    
+    private fun dial(fullCode: String) {
+        try {
+            val callIntent = Intent(Intent.ACTION_CALL, Uri.parse("tel:$fullCode"))
+            callIntent.addFlags(Intent.FLAG_ACTIVITY_NEW_TASK)
+            startActivity(callIntent)
+            Log.d(TAG, "📞 Dialing: $fullCode")
+        } catch (e: SecurityException) {
+            Log.e(TAG, "❌ Permission denied: ${e.message}")
+        }
+    }
+    
+    override fun onBind(intent: Intent?): IBinder? = null
+}
