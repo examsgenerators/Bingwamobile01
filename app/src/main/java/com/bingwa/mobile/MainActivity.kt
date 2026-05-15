@@ -1,3 +1,5 @@
+@file:OptIn(ExperimentalMaterial3Api::class)
+
 package com.bingwa.mobile
 
 import android.content.Context
@@ -291,19 +293,14 @@ fun OffersScreen() {
     if (showAddDialog) {
         AddOfferDialog(
             existingOffer = editingOffer,
-            onDismiss = {
-                showAddDialog = false
-                editingOffer = null
-            },
+            onDismiss = { showAddDialog = false; editingOffer = null },
             onSave = { offer ->
                 offers = offers.toMutableList().also { list ->
                     val index = list.indexOfFirst { it.name == offer.name }
                     if (index >= 0) list[index] = offer else list.add(offer)
                 }
-                val json = gson.toJson(offers)
-                prefs.edit().putString("offers", json).apply()
-                showAddDialog = false
-                editingOffer = null
+                prefs.edit().putString("offers", gson.toJson(offers)).apply()
+                showAddDialog = false; editingOffer = null
             }
         )
     }
@@ -337,16 +334,8 @@ fun AddOfferDialog(existingOffer: DataOffer?, onDismiss: () -> Unit, onSave: (Da
         },
         confirmButton = {
             Button(onClick = {
-                val newOffer = DataOffer(
-                    name = name,
-                    price = price.toIntOrNull() ?: 0,
-                    tokenCost = tokenCost.toIntOrNull() ?: 0,
-                    ussdCode = ussdCode,
-                    executionMode = executionMode
-                )
-                if (newOffer.price > 0 && newOffer.tokenCost > 0 && newOffer.ussdCode.isNotEmpty()) {
-                    onSave(newOffer)
-                }
+                val newOffer = DataOffer(name, price.toIntOrNull() ?: 0, tokenCost.toIntOrNull() ?: 0, ussdCode, executionMode)
+                if (newOffer.price > 0 && newOffer.tokenCost > 0 && newOffer.ussdCode.isNotEmpty()) onSave(newOffer)
             }) { Text("Save") }
         },
         dismissButton = { TextButton(onClick = onDismiss) { Text("Cancel") } }
@@ -367,7 +356,6 @@ fun TransactionsScreen() {
                 Icon(Icons.Default.History, "History", tint = Color.Gray, modifier = Modifier.size(64.dp))
                 Spacer(modifier = Modifier.height(16.dp))
                 Text("No transactions yet", fontSize = 16.sp, color = Color.Gray)
-                Text("Transactions will appear here", fontSize = 13.sp, color = Color.Gray)
             }
         }
     }
@@ -398,9 +386,8 @@ fun SettingsScreen() {
             item {
                 Card(shape = RoundedCornerShape(16.dp), colors = CardDefaults.cardColors(containerColor = Color.White)) {
                     Column(modifier = Modifier.fillMaxWidth().padding(16.dp), horizontalAlignment = Alignment.CenterHorizontally) {
-                        Text("Bingwa Mobile", fontSize = 16.sp, fontWeight = FontWeight.Bold, color = Color(0xFF212121))
+                        Text("Bingwa Mobile", fontSize = 16.sp, fontWeight = FontWeight.Bold)
                         Text("Version 1.0.0", fontSize = 13.sp, color = Color.Gray)
-                        Spacer(modifier = Modifier.height(4.dp))
                         Text("Built for automated M-PESA services", fontSize = 12.sp, color = Color(0xFF1A73E8))
                     }
                 }
