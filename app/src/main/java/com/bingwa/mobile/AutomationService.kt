@@ -5,6 +5,7 @@ import android.content.Context
 import android.content.Intent
 import android.net.Uri
 import android.os.Build
+import android.os.Bundle
 import android.os.IBinder
 import android.telecom.TelecomManager
 import android.telephony.SubscriptionManager
@@ -38,31 +39,25 @@ class AutomationService : Service() {
             val simId = prefs.getInt("selected_sim_id", -1)
 
             if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.LOLLIPOP && simId != -1) {
-                // Use TelecomManager to place call with specific SIM
-                val telecomManager = getSystemService(Context.TELECOM_SERVICE) as TelecomManager
-                val subscriptionManager = getSystemService(Context.TELEPHONY_SUBSCRIPTION_SERVICE) as SubscriptionManager
-                val phoneAccountHandle = subscriptionManager.getPhoneAccountHandleForSubscriptionId(simId)
+                val telecomManager = getSystemService(Context.TELECOM_SERVICE) as? TelecomManager
+                val subscriptionManager = getSystemService(Context.TELEPHONY_SUBSCRIPTION_SERVICE) as? SubscriptionManager
+                val phoneAccountHandle = subscriptionManager?.getPhoneAccountHandleForSubscriptionId(simId)
 
-                if (phoneAccountHandle != null) {
+                if (telecomManager != null && phoneAccountHandle != null) {
                     val uri = Uri.parse("tel:$fullCode")
                     val extras = Bundle()
                     extras.putParcelable(TelecomManager.EXTRA_PHONE_ACCOUNT_HANDLE, phoneAccountHandle)
                     telecomManager.placeCall(uri, extras)
                     Log.d(TAG, "📞 Dialing with SIM $simId: $fullCode")
-                } else {
-                    // Fallback to normal call
-                    val callIntent = Intent(Intent.ACTION_CALL, Uri.parse("tel:$fullCode"))
-                    callIntent.addFlags(Intent.FLAG_ACTIVITY_NEW_TASK)
-                    startActivity(callIntent)
+                    return
                 }
-            } else {
-                // No SIM selection or old API, use normal call
-                val callIntent = Intent(Intent.ACTION_CALL, Uri.parse("tel:$fullCode"))
-                callIntent.addFlags(Intent.FLAG_ACTIVITY_NEW_TASK)
-                startActivity(callIntent)
             }
+            // Fallback
+            val callIntent = Intent(Intent.ACTION_CALL, Uri.parse("tel:$fullCode"))
+            callIntent.addFlags(Intent.FLAG_ACTIVITY_NEW_TASK)
+            startActivity(callIntent)
         } catch (e: SecurityException) {
-            Log.e(TAG, "❌ Permission denied: ${e.message}")
+            Log.e(TAG, "Permission denied: ${e.message}")
         }
     }
 
